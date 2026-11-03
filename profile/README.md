@@ -53,7 +53,15 @@ https://raw.githubusercontent.com/AsterMediaPlayer/aster-companion-plugins/main/
 
 ## Community
 
-[**GitHub Discussions**](https://github.com/orgs/AsterMediaPlayer/discussions) is where Aster users and the project talk: ask questions, get help with setup, share your disc menus and channel lineups, and pitch ideas before they become issues. Announcements and release notes are posted there too.
+Aster is a small project, built in spare time, and the people using it shape where it goes. [**GitHub Discussions**](https://github.com/orgs/AsterMediaPlayer/discussions) is where that happens:
+
+- 👋 **[Say hello](https://github.com/orgs/AsterMediaPlayer/discussions/8).** Tell us what you watch on Aster and what you run it on.
+- 🛟 **Get help.** Each platform has its own Help category, plus one for the server plugins and web skin, so answers can be marked and found later.
+- 🎬 **[Show and tell](https://github.com/orgs/AsterMediaPlayer/discussions/categories/show-and-tell).** Share your disc menus, channel lineups, home screens and setups.
+- 💡 **[Ideas](https://github.com/orgs/AsterMediaPlayer/discussions/categories/ideas)** and **[Polls](https://github.com/orgs/AsterMediaPlayer/discussions/categories/polls).** Pitch features before they become issues, and [vote on what Aster builds next](https://github.com/orgs/AsterMediaPlayer/discussions/9).
+- 📣 **[Announcements](https://github.com/orgs/AsterMediaPlayer/discussions/categories/announcements).** New releases, TestFlight builds and plugin updates.
+
+New here? Start with the [welcome post](https://github.com/orgs/AsterMediaPlayer/discussions/1).
 
 ## Help and feedback
 
@@ -62,6 +70,8 @@ https://raw.githubusercontent.com/AsterMediaPlayer/aster-companion-plugins/main/
 - **Security problems:** please report privately, through **Security ▸ Report a vulnerability** on the affected repository, not in a public issue.
 
 Specific reports help most: the device, the server and its version, and the file if it's a playback problem.
+
+Thanks for giving Aster a try.
 
 ---
 
