@@ -11,7 +11,7 @@ Aster is built for watching your own library on a TV, with the touches that make
 
 Aster is free on every platform and always will be. It was built with extensive help from AI, and that's part of the reason it will never cost anything.
 
-🌐 [astermediaplayer.com](https://astermediaplayer.com) · 🛟 [Support](https://astermediaplayer.com/support.html)
+🌐 [astermediaplayer.com](https://astermediaplayer.com) · 🛟 [Support](https://astermediaplayer.com/support.html) · 💬 [Community](https://github.com/orgs/AsterMediaPlayer/discussions)
 
 ## The apps
 
@@ -51,10 +51,14 @@ https://raw.githubusercontent.com/AsterMediaPlayer/aster-companion-plugins/main/
 | [**channel-builder**](https://github.com/AsterMediaPlayer/channel-builder) | [channels.astermediaplayer.com](https://channels.astermediaplayer.com): a page that writes the settings that turn a Plex playlist into an Aster channel. It runs entirely in your browser. |
 | [**aster-skin**](https://github.com/AsterMediaPlayer/aster-skin) | A CSS theme that gives Jellyfin's web interface Aster's look. |
 
+## Community
+
+[**GitHub Discussions**](https://github.com/orgs/AsterMediaPlayer/discussions) is where Aster users and the project talk: ask questions, get help with setup, share your disc menus and channel lineups, and pitch ideas before they become issues. Announcements and release notes are posted there too.
+
 ## Help and feedback
 
-- **Questions and setup:** the [support page](https://astermediaplayer.com/support.html).
-- **Bugs and ideas:** open an issue in the repository for that app or plugin. Each has templates that ask for what's useful: your device, server and version.
+- **Questions and setup:** the [support page](https://astermediaplayer.com/support.html), or ask in [Discussions](https://github.com/orgs/AsterMediaPlayer/discussions).
+- **Bugs:** open an issue in the repository for that app or plugin. Each has templates that ask for what's useful: your device, server and version.
 - **Security problems:** please report privately, through **Security ▸ Report a vulnerability** on the affected repository, not in a public issue.
 
 Specific reports help most: the device, the server and its version, and the file if it's a playback problem.
