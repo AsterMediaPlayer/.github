@@ -8,11 +8,13 @@ plugin holds everything about tracking and discovery on the **server**, so every
 - **Linked accounts.** Each person's Simkl, AniList, MyAnimeList, Last.fm, ListenBrainz and Hardcover accounts,
   linked once for every app. Trakt is still to come.
 - **Scrobbling.** The server sends what people watch and listen to, from any app. The apps don't send it themselves.
-- **Discover lists.** Watchlists, watching, recommendations, trending and this season's anime from those accounts, in
-  one shape, with TMDB ids for Seerr and the title on the server when it's there.
+- **Discover, built on the server.** Each person's whole Discover page: Recommended for You, Because You Watched, On
+  Your Server, their watchlists, trending. It comes from their own plays and linked accounts, in one shape, with TMDB
+  ids for Seerr, the title on the server when it's there, and the admin's blocked genres and tags already taken out.
 
 This page is the contract the clients follow: iOS, tvOS and macOS (Aster-Media-Player), Android, Windows and Linux.
-Aster Linux is the worked example ([commit f043ddc](https://github.com/AsterMediaPlayer/aster-linux/commit/f043ddc)).
+Aster Linux is the worked example (branch `steam-couch-mode`, from
+[commit f043ddc](https://github.com/AsterMediaPlayer/aster-linux/commit/f043ddc)).
 The plugin's own README has the server side.
 
 All routes are on the Jellyfin server, with the signed-in person's normal Jellyfin authorization
@@ -161,67 +163,111 @@ to Jellyfin properly**, or nothing is sent:
 A quick check that an app reports well: play something past the rule, stop, and look at **Recent sends** on the
 dashboard page (or `GET /AsterTracking/Accounts`).
 
-## 5. Discover: the person's lists
+## 5. Discover: one page, built on the server
+
+**Decided (2026-11-04):** Discover is built by the plugin and sent to the apps ready to show. The apps don't assemble
+it from lists, and they don't rank anything themselves. The server builds each person's page from **their own** plays,
+favourites and linked accounts only, never from other people's.
 
 ```
-GET /AsterTracking/Discover
-→ [ { "Service": "simkl", "List": "watchlist", "Kind": "Watchlist", "Title": "Simkl Watchlist", "Personal": true }, … ]
-
-GET /AsterTracking/Discover/{service}/{list}?page=1&pageSize=30        (pageSize at most 60)
-→ { "Items": [ … ], "Page": 1, "TotalItems": 22, "HasMore": false }
+GET /AsterTracking/Discover/Home              → { "Rows": [ { "Id", "Kind", "Title", "Subtitle", "Items": [ … ] } ], "Built": "…" }
+GET /AsterTracking/Discover/Home?fresh=true   (pull to refresh: built again now)
 ```
 
-Only the lists of services the person has linked come back, in the order to show them:
+Show the rows in the order given, each as a horizontal shelf. Empty rows are already left out.
 
-| Kind | Lists |
-|---|---|
-| Watchlist | Simkl Watchlist · AniList Planning · MyAnimeList Plan to Watch |
-| Watching | on Simkl · on AniList · on MyAnimeList, each item with `Progress` ("Episode 4 of 12") |
-| Recommended | Recommended by AniList · Suggested by MyAnimeList (none already on the person's list) |
-| Trending | Simkl (films, shows, anime) · AniList trending anime · MyAnimeList top airing |
-| This Season | This season's anime (AniList's, or MyAnimeList's without AniList) |
+| Kind | Title | What it is |
+|---|---|---|
+| `continue` | Continue Watching on Your Services | the person's Watching lists (Simkl, AniList, MyAnimeList), with `Progress` |
+| `recommended` | Recommended for You | recommendations for what they recently watched and their favourites (AniList for anime, TMDB for the rest), plus their services' own recommendations, scored together; titles on the server first; nothing they've watched or started |
+| `because` | Because You Watched *X* | the three most recent titles that have recommendations, one row each |
+| `library` | On Your Server, Not Yet Watched | unstarted films and shows on the server picked for their taste: playable now |
+| `watchlist` | Your Watchlists | the services' watchlists, merged |
+| `trending` | Trending | TMDB's week with AniList's trending anime woven in (Simkl's without a TMDB key) |
+| `season` | This Season's Anime | AniList |
 
-Each item:
+### Items
 
 ```json
 { "Title": "Frieren: Beyond Journey's End", "Year": 2023, "MediaType": "tv", "Anime": true,
   "Poster": "https://…", "Overview": "…", "Progress": "Episode 4 of 12",
   "Ids": { "tmdb": "209867", "tvdb": "424536", "imdb": "tt22248376", "anilist": "154587", "mal": "52991", "anidb": "17617", "tmdbSeason": "1" },
-  "InLibrary": { "ItemId": "…", "Name": "Frieren: Beyond Journey's End", "Type": "Series" } }
+  "InLibrary": { "ItemId": "…", "Name": "Frieren: Beyond Journey's End", "Type": "Series" },
+  "Genres": ["Adventure", "Drama", "Fantasy"], "Tags": ["…"], "Adult": false }
 ```
 
 - `MediaType` is `movie` or `tv`, the way Seerr and TMDB split titles.
 - `Ids.tmdb` opens Seerr's page for the title, Request button included. Nearly every item has one: anime get theirs
-  through ARM. Leave out items without one when Seerr is the way in.
-- `Poster` is a full address from the tracking site, not a TMDB path. Show it as it is.
-- `InLibrary` is the film or show on this server, among what this person may see: offer **Play** or show an "On Server"
-  badge. A later anime season matches the whole show, so the season itself may not be there yet.
+  through ARM. When requests are off or there's no TMDB id, a title with `InLibrary` opens the library item instead.
+- `InLibrary` is the film or show on this server, among what this person may see: show an **On Server** badge, or offer
+  Play. A later anime season matches the whole show, so the season itself may not be there yet.
+- **`Poster` is either a full web address** (the tracking site's or TMDB's) **or a path on the Jellyfin server**
+  (`/Items/{id}/Images/Primary?maxHeight=450`) for the server's own titles, which goes on the server's address.
+  Only `http`/`https` count as full addresses: on Linux, .NET's `Uri.TryCreate(…, UriKind.Absolute)` takes
+  `"/Items/…"` as a `file://` address, which is why Aster Linux's library posters were blank until
+  [f1f14bb](https://github.com/AsterMediaPlayer/aster-linux/commit/f1f14bb).
+- `Genres`, `Tags` and `Adult` are what the server judged the title by (§5a). Apps needn't use them.
 
-How to show them (Aster Linux's `DiscoverViewModel.DiscoverRowsAsync`):
+### With Seerr's own rows
 
-1. **Personal lists first** (Watchlist, Watching, Recommended), **in place of Seerr's Watchlist slider (type 3)**.
-   That slider is Plex's watchlist only, empty for Jellyfin people.
-2. **Seerr's own sliders**, in its admin's order.
-3. **Trending and This Season after Seerr's Trending** (and In Theaters).
-4. Each item is the app's usual **Seerr card**, built from the item, *not* looked up in Seerr one by one: twelve lists
-   of 30 would be hundreds of Seerr calls each time Discover opens. Use the item's poster, `Progress` (or year and kind)
-   as the subtitle, and "On Server" as the badge for `InLibrary`. Opening it fetches the full title from Seerr by TMDB
-   id, as any Seerr card does.
-5. A list that fails leaves the others. 410 means that service needs linking again: say so in Settings ▸ Tracking,
-   not on Discover.
+When requests are on, mix in Seerr's own Discover rows (its `settings/discover` sliders through the plugin):
 
-The server keeps each person's lists for 10 minutes. The first load of a list takes 1–3 s, so load the rows in
-parallel and show each as it comes.
+1. The server's rows `continue`, `recommended`, `because`, `library`, `watchlist` first.
+2. Seerr's sliders in their admin's order, **without Seerr's Watchlist (type 3)**: it's Plex's watchlist only, empty
+   for Jellyfin people.
+3. The server's `trending` **in place of Seerr's Trending (type 4)**, then `season`, then In Theaters.
 
-**Without Seerr** (switch off), the lists can still show: cards whose `InLibrary` is set open the library item, and the
-rest show without a Request button. Aster Linux doesn't do that yet: its Discover needs Seerr.
+Each item is the app's usual Seerr card built from the item itself, **not** looked up in Seerr one by one. Use the
+item's `Poster`, its `Progress` or year and kind as the subtitle, and "On Server" for `InLibrary`. Opening the card
+fetches the full title from Seerr by TMDB id, as any Seerr card does.
+
+### Speed
+
+- **One request for the page.** The server keeps each person's page 30 minutes, serves an older one at once while
+  rebuilding it in the background, and rebuilds the pages of people who've used Discover in the last day every quarter
+  of an hour. So it's usually back in about 10 ms. A cold build, the first after a server restart, takes 2–8 s.
+- **Don't make Seerr's rows wait for it.** Start both together. If the server's page isn't back within about 1.5 s,
+  show Seerr's rows and fill the server's in when it comes. Aster Linux does exactly this
+  ([8d231c0](https://github.com/AsterMediaPlayer/aster-linux/commit/8d231c0)).
+- **Keep focus where the person put it.** A page whose rows arrive late must not move focus. Aster Linux's tab pills
+  dropped focus back to the first tab whenever a tab's rows came in; it now keeps focus on the chosen tab until the
+  tab has loaded (same commit).
+
+The per-list routes from before still work, for anything that wants one list in full: `GET /AsterTracking/Discover`
+lists them, and `GET /AsterTracking/Discover/{service}/{list}?page=&pageSize=` gives one, in the same item shape.
+
+### 5a. What the admin keeps out
+
+The server's admin can keep titles out of Discover entirely, under Dashboard ▸ Aster Tracking ▸ Discover ▸ Kept out
+of Discover:
+
+- adult titles (on by default)
+- blocked genres and blocked tags or keywords, for everyone
+- extra blocks for the people they tick, such as kids' accounts
+
+**The apps don't do anything for this:** blocked titles are already gone from the page, the lists, and Seerr's rows
+and search through the plugin. Two things to handle:
+
+- **A blocked title's Seerr page answers 404** through the plugin, with `{"message":"Not available on this server."}`.
+  Show that message ("Not available on this server"), not "Seerr answered 404", and hide the Request button. A card
+  can still lead there from an older page held in the app, or from search typed before the admin changed the blocks.
+- **Lists can be shorter than asked** (a Seerr page of 20 may come back with 15). Keep paging by Seerr's
+  `page`/`totalPages`, not by counting results.
+
+Titles are judged on everything known of them, since sources disagree: AniList's and MyAnimeList's genres and tags,
+TMDB's genres and keywords (from Seerr's page for the title, or the server's TMDB key), and the library's own.
+AniList doesn't call *The Great Jahy Will Not Be Defeated!* Ecchi; TMDB's keywords do, and that's enough.
+
+**TMDB:** the plugin has **no built-in TMDB key.** An app-wide key is a paid commercial licence. Each server admin
+can enter their own (free for personal use) on the dashboard. With it, Discover adds "Because You Watched" for films
+and live-action shows, and TMDB's trending. Without it, those parts are left out and everything else still works.
 
 ## 6. Where each app stands (2026-11-04)
 
-| | Seerr switch (§2) | Linking in Settings (§3) | Vault tracking retired (§3) | No app-side scrobbling (§4) | Playback reports (§4) | Discover lists (§5) |
+| | Seerr through the server (§2) | Linking in Settings (§3) | Vault tracking retired (§3) | No app-side scrobbling (§4) | Playback reports (§4) | Discover page (§5) |
 |---|---|---|---|---|---|---|
-| **Linux** | ✓ through the server, no sign-in | – (it never had tracking) | n/a | ✓ | Music ✓; audiobooks: check on Sonos | ✓ (Seerr only) |
-| **iOS / tvOS / macOS** | to do | to do | to do: it keeps Trakt, Simkl, AniList and MAL in the vault (`AsterFIN/Trackers`) | to do: it sends Simkl, AniList and MAL itself | check | to do (`AsterFIN/Seerr/SeerrDiscover.swift`) |
+| **Linux** | ✓ no sign-in ([7433fd3](https://github.com/AsterMediaPlayer/aster-linux/commit/7433fd3)) | to do: Settings ▸ Tracking | n/a (it never had tracking) | ✓ | Music ✓; audiobooks: check on Sonos | ✓ one request, Seerr rows don't wait; needs Seerr on |
+| **iOS / tvOS / macOS** | to do: remove Settings ▸ Requests sign-in | to do | to do: it keeps Trakt, Simkl, AniList and MAL in the vault (`AsterFIN/Trackers`) | to do: it sends Simkl, AniList and MAL itself | check | to do (`AsterFIN/Seerr/SeerrDiscover.swift`) |
 | **Android** | to do (no Seerr yet) | to do | check | check | check | to do |
 | **Windows** | to do | to do | check | check | check | to do |
 
@@ -234,7 +280,10 @@ On iOS the Seerr work is on the `seerr-discover` branch. The tracker code to ret
   quickest way to see whether an app's playback reached the services.
 - **Seerr switch:** turn Requests off on that page and check the app hides Seerr. Turn it back on and check a request
   goes through as the person, shown under their own name in Seerr.
-- **Discover:** a linked account's lists show within a few seconds. The "On Server" badges match what's in the
-  library.
+- **Discover:** the page shows within a second once the server has built it (pull to refresh asks for `fresh=true`). The
+  "On Server" badges match what's in the library, and the server's own titles have posters.
+- **Blocks:** add a genre the account watches to the blocked genres for one ticked test person. Its titles leave their
+  page and Seerr's rows, and its Seerr pages say "Not available on this server". Then take only that genre off again:
+  never put back a whole saved configuration, which would undo anything the admin changed meanwhile.
 - **Don't test on titles people are in the middle of.** Hardcover, AniList and MAL progress is real. Use a title the
   account owner has OK'd, and put it back afterwards.
