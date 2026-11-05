@@ -3,7 +3,8 @@
 The [Aster Tracking](https://github.com/AsterMediaPlayer/aster-companion-plugins/tree/main/AsterTracking) Jellyfin
 plugin holds everything about tracking and discovery on the **server**, so every Aster app gets it the same way:
 
-- **The Seerr switch.** Aster's request features show only when the server turns them on, with Seerr's address.
+- **Seerr, through the server.** Aster's request features show only when the server turns them on, and the apps
+  reach Seerr through the plugin as the signed-in person. **No app signs in to Seerr.**
 - **Linked accounts.** Each person's Simkl, AniList, MyAnimeList, Last.fm, ListenBrainz and Hardcover accounts,
   linked once for every app. Trakt is still to come.
 - **Scrobbling.** The server sends what people watch and listen to, from any app. The apps don't send it themselves.
@@ -25,7 +26,7 @@ Ask once after sign-in, and again when the app comes back to the foreground afte
 
 ```
 GET /AsterTracking/Features
-→ 200 { "Seerr": { "Enabled": true, "Url": "https://requests.example.com" },
+→ 200 { "Seerr": { "Enabled": true, "Proxy": "/AsterTracking/Seerr/api/v1" },
         "Services": ["simkl", "anilist", "myanimelist", "lastfm", "listenbrainz", "hardcover"] }
 ```
 
@@ -37,17 +38,32 @@ GET /AsterTracking/Features
 
 Plex servers never have the plugin. Emby will get its own port later, at the same routes.
 
-## 2. Seerr: on only when the server says so
+## 2. Seerr: through the server, never signed in to
 
-- **When it shows:** Seerr's features (Discover's Seerr rows, Request buttons, the Requests page, Settings ▸ Requests)
-  show **only** when `Seerr.Enabled` is true. Without the plugin they stay hidden, even if the person signed in to
-  Seerr before. Keep that sign-in; just don't use it while the switch is off.
-- **Prefill the address:** start Settings ▸ Requests with `Seerr.Url` when the person hasn't signed in yet.
-- **Signing in:** people sign in to Seerr with their **Jellyfin** login, as Seerr's Jellyfin sign-in takes it. The
-  plugin keeps no Seerr key.
+**Decided (2026-11-04): no Aster app signs in to Seerr.** The plugin holds Seerr's address and API key, set on the
+dashboard by the server admin, and passes the apps' Seerr calls through, calling Seerr **as the signed-in person**.
+Seerr's `X-Api-User` is matched to the Seerr user linked to that Jellyfin user. So Seerr's own permissions, quotas
+and auto-approval apply as if the person had signed in. Someone without a Seerr account is imported from Jellyfin on
+first use, with Seerr's defaults for new users.
 
-Aster Linux: `SeerrAccounts.UsePlugin(features)` makes `Account` null while the switch is off. `ShellViewModel`
-calls it before loading the Seerr sign-in.
+- **When it shows:** Seerr's features (Discover's Seerr rows, Request buttons, the Requests page) show **only** when
+  `Seerr.Enabled` is true. Without the plugin, a Plex server for example, they stay hidden.
+- **How to call it:** Seerr's own API, unchanged (same paths, queries, bodies and replies), at
+  `{server}{Seerr.Proxy}/{Seerr's path}`, for example `GET {server}/AsterTracking/Seerr/api/v1/discover/trending`.
+  Send the **Jellyfin authorization header** and no Seerr cookie. `auth/me` returns the person's Seerr user.
+- **What passes:** browsing, titles, search and requests: `auth/me`, `movie|tv|person|collection/…`, `discover/…`,
+  `search`, `request…` (create, edit, delete, approve, decline, retry, which Seerr checks the person may do),
+  `genres`, `studio`, `network`, `settings/discover`, `service/radarr|sonarr`, and the person's own
+  `user/{id}/quota|requests|watchlist`.
+- **What doesn't:** everything else (Seerr's settings, user management, other people's data) is **403**. A 503 means
+  requests are off. A 502 means the server couldn't reach Seerr: say "requests aren't available right now", never
+  "sign in".
+- **Remove the apps' Seerr sign-in:** Settings ▸ Requests (address, password, Quick Connect) and the `seerr` entry in
+  the `trackers` vault are retired. A sign-in an app saved before is simply no longer used.
+
+Aster Linux: `SeerrAccounts.UsePluginAsync` makes the "account" the plugin's address plus the Jellyfin header. The
+rest of its Seerr code didn't change. Settings ▸ Requests is gone
+([commit 7433fd3](https://github.com/AsterMediaPlayer/aster-linux/commit/7433fd3)).
 
 ## 3. Accounts: linked only through the plugin
 
@@ -204,7 +220,7 @@ rest show without a Request button. Aster Linux doesn't do that yet: its Discove
 
 | | Seerr switch (§2) | Linking in Settings (§3) | Vault tracking retired (§3) | No app-side scrobbling (§4) | Playback reports (§4) | Discover lists (§5) |
 |---|---|---|---|---|---|---|
-| **Linux** | ✓ | – (it never had tracking) | n/a | ✓ | Music ✓; audiobooks: check on Sonos | ✓ (Seerr only) |
+| **Linux** | ✓ through the server, no sign-in | – (it never had tracking) | n/a | ✓ | Music ✓; audiobooks: check on Sonos | ✓ (Seerr only) |
 | **iOS / tvOS / macOS** | to do | to do | to do: it keeps Trakt, Simkl, AniList and MAL in the vault (`AsterFIN/Trackers`) | to do: it sends Simkl, AniList and MAL itself | check | to do (`AsterFIN/Seerr/SeerrDiscover.swift`) |
 | **Android** | to do (no Seerr yet) | to do | check | check | check | to do |
 | **Windows** | to do | to do | check | check | check | to do |
@@ -216,8 +232,8 @@ On iOS the Seerr work is on the `seerr-discover` branch. The tracker code to ret
 
 - **The dashboard page** (Plugins ▸ Aster Tracking) links and unlinks for anyone and shows **Recent sends**. It's the
   quickest way to see whether an app's playback reached the services.
-- **Seerr switch:** turn Requests off on that page and check the app hides Seerr. Turn it back on, and the address
-  prefills Settings ▸ Requests for a new sign-in.
+- **Seerr switch:** turn Requests off on that page and check the app hides Seerr. Turn it back on and check a request
+  goes through as the person, shown under their own name in Seerr.
 - **Discover:** a linked account's lists show within a few seconds. The "On Server" badges match what's in the
   library.
 - **Don't test on titles people are in the middle of.** Hardcover, AniList and MAL progress is real. Use a title the
