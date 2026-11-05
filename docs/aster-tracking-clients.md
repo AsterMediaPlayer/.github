@@ -69,7 +69,7 @@ rest of its Seerr code didn't change. Settings ▸ Requests is gone
 
 **Decided (2026-11-04):** tracking accounts live **only** in the plugin. The apps no longer keep their own Trakt,
 Simkl, AniList or MyAnimeList sign-ins for tracking, and no longer write them to the `trackers` vault in the display
-preferences. **Seerr's sign-in stays in the vault**, as it does today.
+preferences. The vault's `seerr` entry retires too (section 2), so the apps stop using the vault altogether.
 
 ### Routes
 
