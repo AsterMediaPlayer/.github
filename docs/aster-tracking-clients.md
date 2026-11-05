@@ -1,7 +1,8 @@
-# Aster Tracking: how the Aster clients work with it
+# Aster Discovery and Tracking: how the Aster clients work with it
 
-The [Aster Tracking](https://github.com/AsterMediaPlayer/aster-companion-plugins/tree/main/AsterTracking) Jellyfin
-plugin holds everything about tracking and discovery on the **server**, so every Aster app gets it the same way:
+The [Aster Discovery and Tracking](https://github.com/AsterMediaPlayer/aster-companion-plugins/tree/main/AsterTracking) Jellyfin
+plugin holds everything about discovery and tracking on the **server**, so every Aster app gets it the same way. Its
+routes, folder and assembly keep the earlier name, `AsterTracking`.
 
 - **Seerr, through the server.** Aster's request features show only when the server turns them on, and the apps
   reach Seerr through the plugin as the signed-in person. **No app signs in to Seerr.**
@@ -119,7 +120,7 @@ Things the Aster Linux and dashboard work taught us:
   stops while the person is on the service's page. Last.fm also shows an error page *after* the person approves, but
   the approval still counts: tell people to ignore it and come back.
 - **On a TV, offer only the code and approve flows** (Simkl, Hardcover, Last.fm). For the paste flows, say "link on
-  your server's dashboard (Plugins ▸ Aster Tracking) or in Aster on your phone", since nobody pastes a token with a
+  your server's dashboard (Plugins ▸ Aster Discovery and Tracking) or in Aster on your phone", since nobody pastes a token with a
   remote. MyAnimeList's code is very long.
 - A MyAnimeList code can be pasted as the whole address too (`…?code=…`). The server takes either.
 - A pending link lives in the server's memory: it's lost if the server restarts, which shows as 410. Start again.
@@ -238,7 +239,7 @@ lists them, and `GET /AsterTracking/Discover/{service}/{list}?page=&pageSize=` g
 
 ### 5a. What the admin keeps out
 
-The server's admin can keep titles out of Discover entirely, under Dashboard ▸ Aster Tracking ▸ Discover ▸ Kept out
+The server's admin can keep titles out of Discover entirely, under Dashboard ▸ Aster Discovery and Tracking ▸ Discover ▸ Kept out
 of Discover:
 
 - adult titles (on by default)
@@ -276,7 +277,7 @@ On iOS the Seerr work is on the `seerr-discover` branch. The tracker code to ret
 
 ## 7. Testing against the home server
 
-- **The dashboard page** (Plugins ▸ Aster Tracking) links and unlinks for anyone and shows **Recent sends**. It's the
+- **The dashboard page** (Plugins ▸ Aster Discovery and Tracking) links and unlinks for anyone and shows **Recent sends**. It's the
   quickest way to see whether an app's playback reached the services.
 - **Seerr switch:** turn Requests off on that page and check the app hides Seerr. Turn it back on and check a request
   goes through as the person, shown under their own name in Seerr.
