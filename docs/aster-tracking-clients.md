@@ -12,6 +12,8 @@ routes, folder and assembly keep the earlier name, `AsterTracking`.
 - **Discover, built on the server.** Each person's whole Discover page: Recommended for You, Because You Watched, On
   Your Server, their watchlists, trending. It comes from their own plays and linked accounts, in one shape, with TMDB
   ids for Seerr, the title on the server when it's there, and the admin's blocked genres and tags already taken out.
+- **Add to Watchlist.** Any film or show, from the library, Discover or Seerr, goes on the person's Simkl Plan to
+  Watch through the server, with or without Seerr (plugin 0.9.8, §6).
 
 This page is the contract the clients follow: iOS, tvOS and macOS (Aster-Media-Player), Android, Windows and Linux.
 Aster Linux is the worked example (branch `steam-couch-mode`, from
@@ -234,6 +236,9 @@ fetches the full title from Seerr by TMDB id, as any Seerr card does.
   dropped focus back to the first tab whenever a tab's rows came in; it now keeps focus on the chosen tab until the
   tab has loaded (same commit).
 
+- **Show last time's page at once.** Keep the page on disk and show it while the fresh one loads. The wider speed
+  work, for every screen, is in [Making the Aster clients fast](client-speed.md).
+
 The per-list routes from before still work, for anything that wants one list in full: `GET /AsterTracking/Discover`
 lists them, and `GET /AsterTracking/Discover/{service}/{list}?page=&pageSize=` gives one, in the same item shape.
 
@@ -263,19 +268,113 @@ AniList doesn't call *The Great Jahy Will Not Be Defeated!* Ecchi; TMDB's keywor
 can enter their own (free for personal use) on the dashboard. With it, Discover adds "Because You Watched" for films
 and live-action shows, and TMDB's trending. Without it, those parts are left out and everything else still works.
 
-## 6. Where each app stands (2026-11-04)
+### 5b. Discover without Seerr
 
-| | Seerr through the server (§2) | Linking in Settings (§3) | Vault tracking retired (§3) | No app-side scrobbling (§4) | Playback reports (§4) | Discover page (§5) |
-|---|---|---|---|---|---|---|
-| **Linux** | ✓ no sign-in ([7433fd3](https://github.com/AsterMediaPlayer/aster-linux/commit/7433fd3)) | to do: Settings ▸ Tracking | n/a (it never had tracking) | ✓ | Music ✓; audiobooks: check on Sonos | ✓ one request, Seerr rows don't wait; needs Seerr on |
-| **iOS / tvOS / macOS** | to do: remove Settings ▸ Requests sign-in | to do | to do: it keeps Trakt, Simkl, AniList and MAL in the vault (`AsterFIN/Trackers`) | to do: it sends Simkl, AniList and MAL itself | check | to do (`AsterFIN/Seerr/SeerrDiscover.swift`) |
-| **Android** | to do (no Seerr yet) | to do | check | check | check | to do |
-| **Windows** | to do | to do | check | check | check | to do |
+Discover works with requests off too: the server's rows are the whole page. A card then opens:
+
+1. the library item, when it has `InLibrary`;
+2. otherwise a **title page built from the item itself**: poster (`Poster`), title, year, `Overview`, and the
+   **Add to Watchlist** button (§6), with no Request button. Don't fetch anything from Seerr for it.
+
+Only a card with no ids at all can't be opened. Before 0.10.8, Android said "This title can't be opened here" for every
+card without Seerr, which made Discover a dead end for servers without requests.
+
+## 6. Add to Watchlist (plugin 0.9.8)
+
+From plugin **0.9.8** the apps can put **any film or show** on the person's linked watchlist, and take it off again.
+That includes library titles, Discover's cards and Seerr's titles, **with or without Seerr**. Only Simkl's
+**Plan to Watch** is supported for now. AniList's Planning and MyAnimeList's Plan to Watch will come later under the
+same routes.
+
+### Is it there?
+
+`/AsterTracking/Features` gains `Watchlist`, the services whose watchlist the apps can add to:
+
+```
+GET /AsterTracking/Features
+→ 200 { "Seerr": { … }, "Services": [ … ], "Watchlist": ["simkl"] }
+```
+
+An older plugin has no `Watchlist`. Treat that as empty and show no button.
+
+### Routes
+
+```
+GET    /AsterTracking/Watchlist?mediaType=movie|tv&tmdb=…&imdb=…&tvdb=…&simkl=…&mal=…&anidb=…&anilist=…
+→ 200 { "Services": [ { "Service": "simkl", "Linked": true, "On": false } ] }
+
+POST   /AsterTracking/Watchlist/{service}     body { "MediaType": "tv", "Anime": true, "Ids": { "tmdb": "209867", … }, "Title": "…", "Year": 2023 }
+DELETE /AsterTracking/Watchlist/{service}     the same body
+→ 200 { "Service": "simkl", "On": true }
+```
+
+- **Send every id you have.** Simkl matches on any of `tmdb`, `imdb`, `tvdb`, `mal`, `anidb`, `anilist` or `simkl`.
+  Library anime often carries only an AniList or AniDB id, and that's enough.
+- **`On` is null** when the person hasn't linked the service, or when it couldn't be told (Simkl down).
+- **`DELETE` carries a body.** Some HTTP stacks drop a DELETE body unless asked: .NET needs an `HttpRequestMessage`
+  with `Content`, and URLSession and OkHttp send it as given.
+- **Removal only touches Plan to Watch.** Simkl's removal (`/sync/history/remove`) also clears history, so the
+  plugin refuses to remove a title that isn't on Plan to Watch and just answers `On: false`. A watched title is never
+  wiped by the button.
+- After a change the plugin forgets its cached watchlist and rebuilds the person's Discover page in the background,
+  so the Your Watchlists row catches up within seconds.
+
+| Status | Meaning | What to say |
+|---|---|---|
+| 200 | Done. `On` is where it stands now. | flip the button |
+| 400 | No `MediaType`, or no id Simkl knows | hide the button for this title |
+| 404 | The plugin can't add to that service yet | hide the button |
+| 409 | Not linked | "Link Simkl first, in Settings ▸ Tracking." |
+| 410 | Signed out on Simkl's side | "Simkl needs linking again." |
+| 422 | Simkl doesn't know the title | "Simkl doesn't know this title." |
+| 502 | Simkl couldn't be reached | "Simkl couldn't be reached. Try again." |
+
+### Ids from a library item
+
+Jellyfin's `ProviderIds` keys become the route's lowercase names. Drop anything else, and empty values.
+
+| Jellyfin `ProviderIds` | Route |
+|---|---|
+| `Tmdb` | `tmdb` |
+| `Imdb` | `imdb` |
+| `Tvdb` | `tvdb` |
+| `AniDB` | `anidb` |
+| `AniList` | `anilist` |
+| `MyAnimeList` or `Mal` | `mal` |
+
+A Discover item's `Ids` are already in this shape. A Seerr title has its TMDB id, and its details carry
+`externalIds.imdbId` and `externalIds.tvdbId` (a film's IMDb id is also at the top level, `imdbId`).
+
+### Where the button goes
+
+- **Show it only** when `Features.Watchlist` lists the service **and** the state says `Linked`. Ask for the state
+  after the page's own content, so it never holds the page up.
+- **Films and shows only.** Not seasons or episodes: Simkl's Plan to Watch holds whole shows.
+- **Label it:** "Add to Watchlist" with a bookmark-plus icon, and "On Watchlist" with a filled bookmark once added.
+  Pressing it again takes the title off. Disable it while a change is in flight.
+- **Library title page:** a round icon button beside Favorite.
+- **Seerr title page:** a button after Request and Trailer.
+- **The page from §5b:** a button where Request would be.
+- Android shows a failure as a toast on the library page and as a line under the buttons on the Seerr page. Either is
+  fine.
+
+Android: `ui/discover/WatchlistModel.kt` holds the state and the id mapping (`WatchlistModel.ids`), shared by the
+library page (`ui/detail/DetailScreen.kt`) and the Seerr and Discover page (`ui/discover/SeerrTitlePage.kt`). The
+routes are `watchlistState` and `setWatchlist` in `data/AsterRepository.kt`.
+
+## 7. Where each app stands (2026-11-07)
+
+| | Seerr through the server (§2) | Linking in Settings (§3) | Vault tracking retired (§3) | No app-side scrobbling (§4) | Playback reports (§4) | Discover page (§5) | Discover without Seerr (§5b) | Add to Watchlist (§6) |
+|---|---|---|---|---|---|---|---|---|
+| **Linux** | ✓ no sign-in ([7433fd3](https://github.com/AsterMediaPlayer/aster-linux/commit/7433fd3)) | to do: Settings ▸ Tracking | n/a (it never had tracking) | ✓ | Music ✓; audiobooks: check on Sonos | ✓ one request, Seerr rows don't wait; needs Seerr on | to do | to do |
+| **iOS / tvOS / macOS** | to do: remove Settings ▸ Requests sign-in | to do | to do: it keeps Trakt, Simkl, AniList and MAL in the vault (`AsterFIN/Trackers`) | to do: it sends Simkl, AniList and MAL itself | check | to do (`AsterFIN/Seerr/SeerrDiscover.swift`) | to do | to do |
+| **Android** | ✓ 0.10.8, no sign-in | to do | check | check | check | ✓ 0.10.8, laid out as the Apple TV's, Seerr rows don't wait | ✓ 0.10.8 | ✓ 0.10.8: library pages, Discover and Seerr pages |
+| **Windows** | to do | to do | check | check | check | to do | to do | to do |
 
 On iOS the Seerr work is on the `seerr-discover` branch. The tracker code to retire behind the plugin is
 `AsterFIN/Trackers/*`: keep it for servers without the plugin (§3, last paragraph).
 
-## 7. Testing against the home server
+## 8. Testing against the home server
 
 - **The dashboard page** (Plugins ▸ Aster Discovery and Tracking) links and unlinks for anyone and shows **Recent sends**. It's the
   quickest way to see whether an app's playback reached the services.
@@ -286,5 +385,8 @@ On iOS the Seerr work is on the `seerr-discover` branch. The tracker code to ret
 - **Blocks:** add a genre the account watches to the blocked genres for one ticked test person. Its titles leave their
   page and Seerr's rows, and its Seerr pages say "Not available on this server". Then take only that genre off again:
   never put back a whole saved configuration, which would undo anything the admin changed meanwhile.
+- **Watchlist:** on a film that isn't on the account's Plan to Watch, press Add to Watchlist and check it appears on
+  Simkl and, after a few seconds, in Discover's Your Watchlists row. Press it again and check it's gone. Check that the
+  button doesn't appear for a person without Simkl linked, or on a server with the plugin before 0.9.8.
 - **Don't test on titles people are in the middle of.** Hardcover, AniList and MAL progress is real. Use a title the
   account owner has OK'd, and put it back afterwards.
