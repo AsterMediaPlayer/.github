@@ -17,7 +17,7 @@ Aster is free on every platform and always will be. It was built with extensive 
 
 | Platform | Repository | Get it |
 |---|---|---|
-| Apple TV, iPhone, iPad, Mac | [Aster-Media-Player](https://github.com/AsterMediaPlayer/Aster-Media-Player) | TestFlight now, App Store coming soon |
+| Apple TV, iPhone, iPad, Mac | [aster-apple](https://github.com/AsterMediaPlayer/aster-apple) | TestFlight now, App Store coming soon |
 | Android, Android TV, Fire TV | [aster-android](https://github.com/AsterMediaPlayer/aster-android) | Amazon Appstore (Fire OS) |
 | Windows | [aster-windows](https://github.com/AsterMediaPlayer/aster-windows) | Installer and zip from its Releases |
 | Linux, Steam Deck, couch setups | [aster-linux](https://github.com/AsterMediaPlayer/aster-linux) | Coming soon; built for a controller and Steam's Big Picture |
