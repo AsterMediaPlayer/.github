@@ -44,6 +44,8 @@ To install, add this in Jellyfin under **Dashboard ▸ Plugins ▸ Repositories*
 https://raw.githubusercontent.com/AsterMediaPlayer/aster-companion-plugins/main/manifest.json
 ```
 
+**Using Plex?** Plex can't take plugins, so [**aster-plex-sidecar**](https://github.com/AsterMediaPlayer/aster-plex-sidecar) brings Discovery and Tracking's tracking and watchlists, and the Channels page, to a Plex server instead. It runs beside Plex as a Docker container or a Windows service.
+
 ## Tools and sites
 
 | Repository | What it is |
