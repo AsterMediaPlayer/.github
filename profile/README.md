@@ -36,6 +36,7 @@ Each app plays what your server has as it is where the device can, and falls bac
 | **Aster OP-ED** | Anime openings and endings matched to your shows, with song details from AnimeThemes and copies every client can play. |
 | **Aster Channels** | A Channels page in the server dashboard to make, edit and renumber channels. For Jellyfin and Emby. |
 | **Aster Aurora** | Apple TV style touches for Jellyfin's own web interface: a home banner, trailer backgrounds and more. |
+| **Aster Discovery and Tracking** | Each person's Discover page, scrobbling to their own Trakt, Simkl, AniList, MyAnimeList, Last.fm, ListenBrainz and Hardcover accounts, and requests through Seerr. |
 
 To install, add this in Jellyfin under **Dashboard ▸ Plugins ▸ Repositories**:
 
